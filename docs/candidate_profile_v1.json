@@ -1,0 +1,50 @@
+{
+  "candidate_name": "Andrew Murray",
+
+  "headline": "Operations & Project professional with SaaS experience",
+
+  "years_experience": 10,
+
+  "preferred_roles": [
+    "Operations Analyst",
+    "Project Manager",
+    "Implementation Manager",
+    "Customer Success Manager"
+  ],
+
+  "industries": [
+    "SaaS",
+    "Customer Success",
+    "Enterprise Software"
+  ],
+
+  "skills": {
+    "technical": [
+      "SQL",
+      "Excel",
+      "Power BI",
+      "Basic Python"
+    ],
+    "tools": [
+      "Salesforce",
+      "HubSpot",
+      "Zendesk",
+      "Asana",
+      "Jira",
+      "Smartsheet"
+    ],
+    "soft_skills": [
+      "Stakeholder Management",
+      "Project Coordination",
+      "Process Improvement",
+      "Remote Collaboration"
+    ]
+  },
+
+  "work_preferences": {
+    "remote_only": true,
+    "locations": ["Worldwide"],
+    "employment_type": ["Full-time"],
+    "salary_min_usd": 0
+  }
+}
