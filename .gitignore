@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# VS Code
+.vscode/
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Generated files
+output/
+generated/
+
+# Environment files
+.env
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Docker
+docker/n8n_data/
+
+# LM Studio cache (if used inside project)
+models/
