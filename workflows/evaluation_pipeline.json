@@ -1,5 +1,5 @@
 {
-  "name": "AI Test Workflow v2",
+  "name": "evaluation_pipeline",
   "nodes": [
     {
       "parameters": {},
