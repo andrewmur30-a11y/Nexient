@@ -116,8 +116,50 @@
         "method": "POST",
         "url": "http://host.docker.internal:8000/save-evaluation",
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"job_id\": 1,\n  \"overall_score\": {{$json.overall_score}},\n  \"decision\": \"{{$json.decision}}\",\n  \"strengths\": {{$json.strengths}},\n  \"missing_skills\": {{$json.missing_skills}},\n  \"reasoning\": \"{{$json.reasoning}}\",\n  \"summary\": \"{{$json.summary}}\",\n  \"evaluated_at\": \"{{$now}}\",\n  \"run_id\": \"{{$execution.id}}\"\n}",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "job_id",
+              "value": "={{ 1 }}"
+            },
+            {
+              "name": "overall_score",
+              "value": "={{ Number($json.overall_score) }}"
+            },
+            {
+              "name": "decision",
+              "value": "={{ $json.decision }}"
+            },
+            {
+              "name": "strengths",
+              "value": "={{ Array.isArray($json.strengths) ? $json.strengths : (typeof $json.strengths === 'string' && $json.strengths.trim().startsWith('[') ? JSON.parse($json.strengths) : [$json.strengths]) }}"
+            },
+            {
+              "name": "missing_skills",
+              "value": "={{ Array.isArray($json.missing_skills) ? $json.missing_skills : (typeof $json.missing_skills === 'string' && $json.missing_skills.trim().startsWith('[') ? JSON.parse($json.missing_skills) : [$json.missing_skills]) }}"
+            },
+            {
+              "name": "reasoning",
+              "value": "={{ Array.isArray($json.missing_skills) ? $json.missing_skills : (typeof $json.missing_skills === 'string' && $json.missing_skills.trim().startsWith('[') ? JSON.parse($json.missing_skills) : [$json.missing_skills]) }}"
+            },
+            {
+              "name": "reasoning",
+              "value": "={{ $json.reasoning }}"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $json.summary }}"
+            },
+            {
+              "name": "evaluated_at",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "run_id",
+              "value": "={{ $execution.id }}"
+            }
+          ]
+        },
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -183,7 +225,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "a141f010-214e-46ef-889e-e9284f7c41ba",
+  "versionId": "e4cbd63d-82ae-4352-9f7c-9b771c82e9d4",
   "meta": {
     "instanceId": "eb7caf52db8afb10139283a7edf3c49c1ed6e71d662e15eb469eeca6cb765fd2"
   },
