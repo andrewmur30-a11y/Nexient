@@ -1,0 +1,276 @@
+{
+  "name": "evaluation_pipeline_v2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "61b9cdc1-a7de-4710-a344-51a4557fc22b",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8000/candidates/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "567dde6b-97d9-4fb6-a936-7e0ec88fa6e3",
+      "name": "GET Candidate"
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8000/job/1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        208
+      ],
+      "id": "e1484d24-b88f-451c-98df-555a285a9332",
+      "name": "GET Job"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {
+          "clashHandling": {
+            "values": {
+              "resolveClash": "addSuffix"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        112
+      ],
+      "id": "8a0ad2c0-948e-451e-9224-bdf84c028768",
+      "name": "Merge Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const candidate = item.json.profile_1 || item.json.profile || '';\n  const title = item.json.job_title_2 || item.json.job_title || '';\n  const comp = item.json.company_2 || item.json.company || '';\n  const loc = item.json.location_2 || item.json.location || '';\n  const empType = item.json.employment_type_2 || item.json.employment_type || '';\n  const sal = item.json.salary_2 || item.json.salary || '';\n  const desc = item.json.job_description_2 || item.json.job_description || '';\n\n  return {\n    json: {\n      ...item.json, \n      // 🎯 Pulls the exact clash-handled integers directly from Input 1 and Input 2\n      candidate_database_id: item.json.id_1, \n      job_database_id: item.json.id_2 || 1,\n      \n      lm_studio_prompt: `Compare this candidate profile against the job description.\\n\\nCandidate Profile:\\n${candidate}\\n\\nJob Title:\\n${title}\\n\\nCompany:\\n${comp}\\n\\nLocation:\\n${loc}\\n\\nEmployment Type:\\n${empType}\\n\\nSalary:\\n${sal}\\n\\nJob Description:\\n${desc}\\n\\nReturn exactly this JSON structure:\\n{\\n\\\"job_title\\\":\\\"string\\\",\\n\\\"overall_score\\\":0,\\n\\\"decision\\\":\\\"Apply|Maybe|Skip\\\",\\n\\\"strengths\\\":[],\\n\\\"missing_skills\\\":[],\\n\\\"reasoning\\\":\\\"string\\\",\\n\\\"summary\\\":\\\"string\\\"\\n}`\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        112
+      ],
+      "id": "9d7ea4cf-75c7-46be-aef9-5d17b97265db",
+      "name": "Build Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:1234/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5-14b-instruct-1m\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an expert recruitment assistant. Your response MUST consist of exactly one valid JSON object and nothing else. Never write explanations, markdown, code fences, or introductory text. Compare the candidate objectively against the job requirements.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.lm_studio_prompt) }}\n    }\n  ],\n  \"temperature\": 0.2\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        112
+      ],
+      "id": "c03dfe1a-b034-42e6-ad42-1c448eaeb7b2",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  try {\n    // 🧠 Secure extraction checking both array index [0] and flat fallback paths\n    let rawContent = \"\";\n    \n    if (item.json.choices && item.json.choices[0] && item.json.choices[0].message) {\n      rawContent = item.json.choices[0].message.content;\n    } else if (item.json.choices && item.json.choices.message) {\n      rawContent = item.json.choices.message.content;\n    } else {\n      throw new Error(\"Model completion choices path not found in the payload payload object.\");\n    }\n\n    rawContent = rawContent.trim();\n    const parsedJson = JSON.parse(rawContent);\n    \n    return {\n      json: {\n        candidate_database_id: item.json.candidate_database_id,\n        job_database_id: item.json.job_database_id,\n        ...parsedJson   // Merge parsed properties from Qwen\n      }\n    };\n  } catch (error) {\n    return {\n      json: {\n        candidate_database_id: item.json.candidate_database_id,\n        job_database_id: item.json.job_database_id,\n        error: \"Failed to parse model response text\",\n        raw_error_message: error.message\n      }\n    };\n  }\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        112
+      ],
+      "id": "b4af467b-e232-48f8-b2c1-2e64d0646362",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/save-evaluation",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "job_id",
+              "value": "={{ $('Build Prompt').itemMatching($itemIndex).json.job_database_id || 1 }}\n"
+            },
+            {
+              "name": "overall_score",
+              "value": "={{ Number($json.overall_score) }}"
+            },
+            {
+              "name": "decision",
+              "value": "={{ $json.decision }}"
+            },
+            {
+              "name": "strengths",
+              "value": "={{ Array.isArray($json.strengths) ? $json.strengths : (typeof $json.strengths === 'string' && $json.strengths.trim().startsWith('[') ? JSON.parse($json.strengths) : [$json.strengths]) }}"
+            },
+            {
+              "name": "missing_skills",
+              "value": "={{ Array.isArray($json.missing_skills) ? $json.missing_skills : (typeof $json.missing_skills === 'string' && $json.missing_skills.trim().startsWith('[') ? JSON.parse($json.missing_skills) : [$json.missing_skills]) }}"
+            },
+            {
+              "name": "reasoning",
+              "value": "={{ $json.reasoning }}"
+            },
+            {
+              "name": "summary",
+              "value": "={{ $json.summary }}"
+            },
+            {
+              "name": "evaluated_at",
+              "value": "={{ $now }}"
+            },
+            {
+              "name": "run_id",
+              "value": "={{ $execution.id }}"
+            },
+            {
+              "name": "candidate_id",
+              "value": "={{ $('Build Prompt').itemMatching($itemIndex).json.candidate_database_id }}\n\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1040,
+        112
+      ],
+      "id": "06e4df5d-6e47-46b0-9d14-fa4385eb2c27",
+      "name": "HTTP Request3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "GET Candidate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Candidate": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Job": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5b7aa98e-353d-4800-9154-b6b9a650ab15",
+  "meta": {
+    "instanceId": "eb7caf52db8afb10139283a7edf3c49c1ed6e71d662e15eb469eeca6cb765fd2"
+  },
+  "nodeGroups": [],
+  "id": "tCWNhF213be1AU7d",
+  "tags": []
+}
