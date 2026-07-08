@@ -1,5 +1,5 @@
 # 🤖 AI Job Agent
-
+The repository doesn't match the planned layout, yet
 > **A local-first AI recruitment automation platform built with FastAPI, n8n, SQLite, and a locally hosted Large Language Model.**
 
 
