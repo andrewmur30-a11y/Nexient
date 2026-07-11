@@ -5,3 +5,6 @@ requests
 playwright
 beautifulsoup4
 lxml
+python-docx
+HTTPX
+pypdf
