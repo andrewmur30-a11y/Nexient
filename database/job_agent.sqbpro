@@ -1,4 +1,83 @@
-<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="job_agent.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="1"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="2598"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="evaluations" custom_title="0" dock_id="1" table="4,11:mainevaluations"/><dock_state state="000000ff00000000fd0000000100000002000003270000022ffc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000000003270000012300ffffff000002690000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="applications" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="35"/><column index="2" value="45"/><column index="3" value="83"/><column index="4" value="85"/><column index="5" value="79"/><column index="6" value="113"/><column index="7" value="68"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="candidates" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="35"/><column index="2" value="127"/><column index="3" value="300"/><column index="4" value="300"/><column index="5" value="97"/><column index="6" value="114"/><column index="7" value="71"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="evaluations" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="35"/><column index="2" value="43"/><column index="3" value="81"/><column index="4" value="51"/><column index="5" value="79"/><column index="6" value="96"/><column index="7" value="86"/><column index="8" value="64"/><column index="9" value="62"/><column index="10" value="84"/><column index="11" value="44"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="jobs" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="35"/><column index="2" value="300"/><column index="3" value="300"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1*">-- Deletes the last 5 jobs added to the database to bring the total count to 15
-DELETE FROM jobs WHERE id IN (SELECT id FROM jobs ORDER BY id DESC LIMIT 5);
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="" readonly="0" foreign_keys="" case_sensitive_like="" temp_store="" wal_autocheckpoint="" synchronous=""/><attached/><window><main_tabs open="structure browser pragmas query" current="1"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="5099"/><column_width id="4" width="0"/></tab_structure><tab_browse><table title="." custom_title="0" dock_id="2" table="0,0:"/><dock_state state="000000ff00000000fd0000000100000002000003270000022ffc0100000002fb000000160064006f0063006b00420072006f00770073006500310100000000000003270000000000000000fb000000160064006f0063006b00420072006f00770073006500320100000000000003270000011e00ffffff000002690000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">-- STREAMING_CHUNK:Configuring schema-wide parameters and constraints
+PRAGMA foreign_keys = ON;
 
-This ensures your database is cleanly optimized down to **5 candidates and 15 jobs** ($5 \times 15 = 75$ pairings total), allowing you to run your tests swiftly without any local GPU timeouts! Run the updated seeder and execute the SQL script in your browser to begin testing.</sql><current_tab id="0"/></tab_sql></sqlb_project>
+-- STREAMING_CHUNK:Defining the Candidates table schema with identity resolution
+CREATE TABLE IF NOT EXISTS candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    organization_id TEXT NOT NULL DEFAULT 'default_org', -- Scopes candidates to recruitment firms/tenants
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,                                  -- The structural &quot;Identity Anchor&quot;
+    skills TEXT,                                          -- Stored as a JSON string array: [&quot;Python&quot;, &quot;FastAPI&quot;]
+    experience TEXT,                                      -- Detailed text representing profile and background
+    preferred_roles TEXT,                                 -- Comma-separated or JSON list of target titles
+    preferred_location TEXT,                              -- Desired location (e.g., &quot;Remote&quot;, &quot;New York&quot;)
+    profile_fingerprint TEXT,                             -- Cryptographic representation of semantic qualifications state
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(organization_id, email)                        -- Blocks cross-organization identity collisions
+);
+
+-- STREAMING_CHUNK:Defining the Jobs table schema with lifecycle states and cryptographic uniqueness
+CREATE TABLE IF NOT EXISTS jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    organization_id TEXT NOT NULL DEFAULT 'default_org', -- Scopes scraped or manually injected jobs to an agency
+    job_title TEXT NOT NULL,
+    company TEXT,
+    location TEXT,
+    employment_type TEXT,
+    salary TEXT,
+    job_description TEXT,                                 -- Raw details scraped from the web
+    requirements TEXT,                                    -- Stored as a JSON string array of core qualifications
+    job_url TEXT,
+    job_fingerprint TEXT,                                 -- SHA-256 hash representing unique title+company+location
+    status TEXT DEFAULT 'Active',                         -- 'Active', 'Archived', 'Expired'
+    source TEXT,
+    last_verified TEXT,                                   -- Timestamp for link/activity validation worker
+    date_found TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(organization_id, job_url),                     -- Prevents duplicate scrapers on identical links
+    UNIQUE(organization_id, job_fingerprint)              -- Prevents duplicate postings under alternate URL routers
+);
+
+-- STREAMING_CHUNK:Defining the Evaluations bridge table to track static evaluations over time
+CREATE TABLE IF NOT EXISTS evaluations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL,
+    candidate_id INTEGER NOT NULL, 
+    overall_score INTEGER,
+    decision TEXT,                                        -- Strictly &quot;Proceed&quot;, &quot;Hold&quot;, or &quot;Reject&quot;
+    strengths TEXT,                                       -- Stored as a JSON string array
+    missing_skills TEXT,                                  -- Stored as a JSON string array
+    reasoning TEXT,
+    summary TEXT,
+    candidate_snapshot_fingerprint TEXT,                  -- Tracks exactly which resume edition was scored
+    evaluated_at TEXT,
+    run_id TEXT,                                          -- Groups multiple evaluations under single workflow execution
+    FOREIGN KEY(job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    FOREIGN KEY(candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+);
+
+-- STREAMING_CHUNK:Defining the Applications table schema for progression mapping
+CREATE TABLE IF NOT EXISTS applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL,
+    candidate_id INTEGER NOT NULL, 
+    resume_used TEXT,
+    cover_letter TEXT,
+    application_status TEXT DEFAULT 'Draft',              -- &quot;Draft&quot;, &quot;Submitted&quot;, &quot;Interviewing&quot;, &quot;Accepted&quot;, &quot;Rejected&quot;
+    applied_at TEXT,
+    FOREIGN KEY(job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+    FOREIGN KEY(candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+);
+
+-- STREAMING_CHUNK:Configuring performance indexes for scale and speed
+CREATE INDEX IF NOT EXISTS idx_jobs_org_status ON jobs(organization_id, status);
+CREATE INDEX IF NOT EXISTS idx_jobs_fingerprint ON jobs(job_fingerprint);
+CREATE INDEX IF NOT EXISTS idx_candidates_org_email ON candidates(organization_id, email);
+CREATE INDEX IF NOT EXISTS idx_evaluations_mapping ON evaluations(job_id, candidate_id);
+```eof
+
+Once you hit **Play** and click **Write Changes**, your database structure is perfectly configured!
+
+### Next Step:
+Open your terminal and run the database seeder to instantly populate it with your mock dataset:
+```bash
+python scripts/seed_database.py</sql><current_tab id="0"/></tab_sql></sqlb_project>
